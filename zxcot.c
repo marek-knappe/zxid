@@ -69,6 +69,7 @@ Usage: zxcot [options] [cotdir]         # Gives listing of metadata\n\
   -q               Be extra quiet.\n\
   -d               Turn on debugging.\n\
   -dc              Dump configuration.\n\
+  -j		   Perceptyx - show just sha1 file sum\n\
   -h               This help message\n\
   --               End of options\n\
 \n\
@@ -81,6 +82,7 @@ zxcot -e http://idp.tas3.pt:8081/zxididp?o=S 'TAS3 Default Discovery Service (ID
 int sign_md = 0;
 int swap = 0;
 int addmd = 0;
+int addpx = 0;
 int regsvc = 0;
 int regbs = 0;
 int genmd = 0;
@@ -124,6 +126,13 @@ static void opt(int* argc, char*** argv, char*** env)
       }
       break;
 
+    case 'j':
+      switch ((*argv)[0][2]) {
+      case '\0':
+        ++addpx;
+        continue;
+      }
+      break;
     case 'b':
       switch ((*argv)[0][2]) {
       case 's':
@@ -521,6 +530,35 @@ static int zxid_reg_svc(zxid_conf* cf, int bs_reg, int dry_run, const char* ddim
 
 /*() Add metadata of a partner to the Circle-of-Trust, represented by the CoT dir */
 
+
+/* Called by zxcot_main */
+
+static int zxid_addpx(zxid_conf* cf, char* mdurl, int dry_run, const char* dcot)
+{
+  int got;
+//  fdtype fd;
+  char* p;
+  zxid_entity* ent;
+//  struct zx_str* ss;
+
+  if (mdurl) {
+    ent = zxid_get_meta(cf, mdurl);
+  } else {
+    read_all_fd(fdstdin, buf, sizeof(buf)-1, &got);
+    buf[got] = 0;
+    p = buf;
+    ent = zxid_parse_meta(cf, &p, buf+got);
+  }
+
+  if (!ent) {
+    ERR("***** Parsing metadata failed %d", 0);
+    return 1;
+  }
+  printf("%s", ent->sha1_name);
+ 
+  return 0;
+
+}
 /* Called by:  zxcot_main */
 static int zxid_addmd(zxid_conf* cf, char* mdurl, int dry_run, const char* dcot)
 {
@@ -685,6 +723,9 @@ int zxcot_main(int argc, char** argv, char** env)
     
   if (addmd)
     return zxid_addmd(cf, mdurl, dryrun, cotdir);
+
+  if (addpx)
+    return zxid_addpx(cf, mdurl, dryrun, cotdir);
   
   if (regsvc)
     return zxid_reg_svc(cf, regbs, dryrun, dimddir, uiddir);
